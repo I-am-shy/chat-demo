@@ -26,6 +26,9 @@ const SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公司创造。'
 - 设置面板新增「模型」列表管理（添加 / 别名 / 删除 / 恢复默认）与「系统提示词」编辑
 - 聊天输入区功能区新增模型下拉框，选项来自已配置列表，按别名展示
 - API 地址改为运行时可配置，默认值仍由构建配置注入；语音接口固定用默认地址
+- 新增「路径前缀」设置（默认 `/anthropic/v1`），聚合网关（one-api / new-api）可改成 `/v1`
+- 网关返回 HTML 兜底页时给出可操作的提示，不再把整段 HTML 当作错误信息
+- 新增「兼容模式」：按标准 Anthropic 请求体发送（补 `max_tokens`、带 `anthropic-version`、去掉扩展字段），适配按 schema 校验的聚合网关
 - 请求体 `model` / `system` 改为读取生效值
 
 **不纳入**
@@ -66,6 +69,8 @@ export const DEFAULT_SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公�
 
 `API 地址` 的默认值不放在这个文件：沿用构建期注入的 `__API_ORIGIN__`（`rspack.config.ts` 的 `apiOrigin`，默认 `https://api.deepseek.com`），设置里的覆盖值优先。语音接口（`/v1/tools`）不使用覆盖值，始终走该默认地址。
 
+`API 路径前缀` 的默认值放在 `config.ts`（`DEFAULT_API_PATH = '/anthropic/v1'`），因为它属于接口约定而不是部署信息。
+
 ## 5. 存储与类型
 
 | 项 | 变更 |
@@ -82,6 +87,9 @@ export const DEFAULT_SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公�
 | 联动 | `setModels` 时若当前 `model` 已不在新列表中，将 `model` 置为 `null`（自动回落到首项） |
 | API 地址 | 新增 `apiOrigin: string \| null`，键 `chat-demo:api-origin`；读入时校验 http/https、去掉末尾斜杠；`null` 表示未覆盖 |
 | 派生读取（续） | `getEffectiveApiOrigin()` → `apiOrigin ?? DEFAULT_API_ORIGIN`；`DEFAULT_API_ORIGIN` 即 `__API_ORIGIN__` |
+| 路径前缀 | 新增 `apiPath: string \| null`，键 `chat-demo:api-path`；统一补前导斜杠、去末尾斜杠；`null` 表示未覆盖 |
+| 派生读取（再续） | `getEffectiveApiPath()` → `apiPath ?? DEFAULT_API_PATH`；接口基址为 `origin + path` |
+| 兼容模式 | 新增 `compatMode: boolean`，键 `chat-demo:compat-mode`，默认 `false` |
 
 `AssistantMessage.model` 不做数据迁移：旧数据为具体模型名或 `null`，两者都兼容。
 
@@ -149,18 +157,20 @@ export const DEFAULT_SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公�
 - 「恢复默认」按钮：仅在已配置时显示，点击后删除键并把文本域恢复为默认内容
 - 说明文字：「作为请求的 system 字段，对所有新对话与继续生成生效」
 
-### 7.4 设置 → 数据管理 → API 地址
+### 7.4 设置 → 数据管理 → API 地址与路径前缀
 
-- 单行输入，占位符直接显示默认地址（`DEFAULT_API_ORIGIN`），留空即用默认
-- 提交时机：失焦或回车；只接受 `http:` / `https:` 绝对地址，末尾斜杠自动去掉
-- 非法地址：不写入，输入框保留原文并在下方提示
-- 与默认地址相同：视为未覆盖（等同清空），不写入 localStorage
-- 「恢复默认」按钮：仅在已覆盖时显示
-- 说明文字注明「仅影响对话与文件接口，语音接口仍用默认地址」
+- 两个单行输入：地址（占位符显示默认地址）、路径前缀（占位符显示 `DEFAULT_API_PATH`），留空即用默认
+- 提交时机：失焦或回车；地址只接受 `http:` / `https:` 绝对地址，路径需以 `/` 开头且不含空格
+- 地址里若带了路径（含直接粘贴的完整接口地址），提交时把路径移到「路径前缀」，例如 `https://host/v1/messages` → 地址 `https://host` + 路径 `/v1`
+- 非法输入不写入，输入框保留原文并在下方提示
+- 与默认值相同视为未覆盖，不写入 localStorage；「恢复默认」清空两项
+- 说明文字给出默认组合，并注明「语音接口固定用默认地址」
+- 网关对未知路径返回 HTML 兜底页时（聚合网关常见），报错文案带上实际请求地址，提示检查地址与路径前缀，而不是把整段 HTML 抛给用户
+- 「兼容模式」勾选框：请求体转成标准 Anthropic 协议（`max_tokens` 补 8192、带 `anthropic-version: 2023-06-01`），不发 `thinking` / `tools` / `safety_check` / `title`，`latest_reminder` 正文并入 system 保留日期上下文
 
 ### 7.5 文案（i18n）
 
-zh / en 各新增 13 个键：
+zh / en 各新增 18 个键：
 
 | key | zh-CN | en-US |
 | --- | --- | --- |
@@ -176,6 +186,11 @@ zh / en 各新增 13 个键：
 | `settingsApiOrigin` | API 地址 | API endpoint |
 | `settingsApiOriginDescription` | 留空使用默认地址；需以 http:// 或 https:// 开头。仅影响对话与文件接口，语音接口仍用默认地址 | Leave empty to use the default; must start with http:// or https://. Applies to chat and file requests only — speech keeps the default |
 | `settingsApiOriginInvalid` | 请输入以 http:// 或 https:// 开头的地址 | Enter an address starting with http:// or https:// |
+| `settingsApiPath` | 路径前缀 | Path prefix |
+| `settingsApiPathInvalid` | 路径需以 / 开头，且不能包含空格 | Path must start with / and contain no spaces |
+| `apiHtmlResponse` | 服务返回了 HTML 页面而不是接口响应，请检查…：{url} | The service returned an HTML page instead of an API response. Check…：{url} |
+| `settingsCompatMode` | 兼容模式（标准 Anthropic 请求体） | Compatibility mode (strict Anthropic body) |
+| `settingsCompatModeDescription` | 适配 one-api / new-api 这类聚合网关… | For aggregator gateways such as one-api / new-api… |
 | `settingsRestoreDefault` | 恢复默认 | Restore default |
 
 删除按钮复用已有的 `delete` 键；模型下拉的 `aria-label` 复用 `settingsModel`。
@@ -225,10 +240,11 @@ zh / en 各新增 13 个键：
 
 | 文件 | 变更 |
 | --- | --- |
-| `src/config.ts` | 新增：`ModelEntry` 类型、默认模型列表（含别名位）、默认模型、默认系统提示词 |
+| `src/config.ts` | 新增：`ModelEntry` 类型、默认模型列表（含别名位）、默认模型、默认系统提示词、默认 API 路径前缀 |
 | `src/services/api/types.ts` | `ChatModel` 放宽为 `string` |
-| `src/services/settings.ts` | 新增三项状态、键、setter 与 `getModelOptions` / `getEffectiveModel` / `getEffectiveSystemPrompt`；新增 `apiOrigin`、`getEffectiveApiOrigin`、`isValidApiOrigin` 与 `DEFAULT_API_ORIGIN` |
-| `src/services/api/client.ts` | `API_ORIGIN` / `ANTHROPIC_BASE_URL` 常量改为按请求取 `getEffectiveApiOrigin()` |
+| `src/services/settings.ts` | 新增四项状态、键、setter 与 `getModelOptions` / `getEffectiveModel` / `getEffectiveSystemPrompt`；新增 `apiOrigin` / `apiPath` / `getEffectiveApiOrigin` / `getEffectiveApiPath` / `isValidApiOrigin` / `isValidApiPath` / `parseApiAddress` 与 `DEFAULT_API_ORIGIN` |
+| `src/services/api/client.ts` | 基址改为 `origin + path` 按请求取值；`/models` 校验失败时按路径前缀重试；HTML 响应统一转成 `apiHtmlResponse` 提示；兼容模式下改用标准请求体 |
+| `src/services/api/compat.ts` | 新增：`toCompatibleBody`（补 `max_tokens`、去扩展字段、合并 `latest_reminder`）与常量 |
 | `src/services/api/speech.ts` | 语音接口继续用构建期 `__API_ORIGIN__`，不跟随设置里的覆盖值 |
 | `src/services/chat/store.ts` | 删除两个常量，四处改为读取生效值 |
 | `src/components/settings/ChatBehaviorSettings.tsx` | 新增：模型列表管理（别名 + 模型名双输入）、系统提示词编辑 |
@@ -241,7 +257,7 @@ zh / en 各新增 13 个键：
 | `src/components/chatInput/ChatInput.module.css` | 新增 `.modelSelect` |
 | `src/components/chatInput/ChatInput.module.css.d.ts` | 同步类名表 |
 | `src/components/base/Select.tsx` | 新增 `align` 参数（默认 `'end'`） |
-| `src/i18n/zh.ts`、`src/i18n/en.ts` | 各新增 13 个键 |
+| `src/i18n/zh.ts`、`src/i18n/en.ts` | 各新增 16 个键 |
 | `README.md`、`README.zh-CN.md` | 说明模型列表、提示词与 API 地址可在设置中配置、默认值来源，以及语音接口不跟随覆盖 |
 
 ## 11. 验证
@@ -259,7 +275,12 @@ zh / en 各新增 13 个键：
    - 「恢复默认」后列表回到两项
    - 修改系统提示词后发送，请求体 `system` 随之变化；点「恢复默认」后回落
    - 填入自建 API 地址后，发送消息与校验 API Key 走新地址；语音朗读仍请求默认地址
-   - 填入非法地址（`abc`、`ftp://x`）被拒绝并提示；填默认地址等同未覆盖；「恢复默认」回到默认
+   - 聚合网关把地址设为 `https://llm-api.zego.cloud`、路径设为 `/v1` 后能正常发出请求（无密钥时得到 401 而不是 HTML）
+   - 路径留默认 `/anthropic/v1` 打聚合网关时，报错文案带实际地址并提示检查路径前缀
+   - 勾选「兼容模式」后，请求体含 `max_tokens` 与 `anthropic-version`，不再带 `thinking` / `tools` / `safety_check`，聚合网关返回 200 流式响应
+   - 粘贴 `https://host/v1/messages` 提交，地址变成 `https://host`、路径变成 `/v1`
+   - 填入非法地址（`abc`、`ftp://x`）或非法路径（`v1`、`/a b`）被拒绝并提示
+   - 填默认地址等同未覆盖；「恢复默认」同时清空地址与路径
    - 刷新后配置保留；清除 site data 后回到默认
    - 已生成回复点「继续生成」，`model` 仍为该回复原值
 3. 布局：375px 与 320px 宽度下功能行不溢出、开关文字自动收起、下拉文字省略
@@ -270,6 +291,8 @@ zh / en 各新增 13 个键：
 - 功能行空间有限，别名过长依赖省略号与窄屏上限（窄屏 108px），完整名称在设置的列表里可见
 - 任意模型名会把服务端 400 直接暴露给用户，错误提示复用现有链路，不做额外引导
 - 自定义 API 地址要求服务端允许浏览器跨域（CORS）；上传过的 `file_id` 绑定原地址，换地址后旧附件可能取不到
+- 聚合网关（one-api / new-api）多数只实现 Messages / Models，不提供 Files API，附件上传会失败；这类网关的兼容程度不在本仓库控制范围内
+- 兼容模式会丢掉联网搜索、链接阅读与思考开关（这些是 Chat Engine 扩展），只会话正文与系统提示词仍完整
 - 语音接口不跟随地址覆盖，自建网关想接语音需要改 `src/services/api/speech.ts`
 - 系统提示词改动无审计、无长度下限约束，属于本地单机应用的可接受范围
 - 全局提示词会立刻影响历史会话的后续请求；若要“会话内固定人格”，需把快照写进 `Session`，属于另一次改动

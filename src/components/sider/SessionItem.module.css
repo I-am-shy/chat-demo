@@ -45,6 +45,11 @@
   margin-left: 4px;
 }
 
+/* 菜单打开期间保持触发按钮可见，否则触发元素塌成 0×0、浮层会跳到左上角 */
+.item.menuOpen .action {
+  display: flex;
+}
+
 .renameInput {
   box-sizing: border-box;
   width: 100%;

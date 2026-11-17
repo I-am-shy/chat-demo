@@ -177,9 +177,11 @@ export type CreateMessageRequest = {
   model: ChatModel
   system: string
   messages: MessageParam[]
-  thinking: { type: 'enabled' | 'disabled' }
-  tools: (DeepseekWebSearchTool | DeepseekReadUrlTool)[]
-  safety_check: { level: 'high' }
+  /** 输出上限；Anthropic 协议必填，Chat Engine 不要求，兼容模式下由客户端补上 */
+  max_tokens?: number
+  thinking?: { type: 'enabled' | 'disabled' }
+  tools?: (DeepseekWebSearchTool | DeepseekReadUrlTool)[]
+  safety_check?: { level: 'high' }
   title?: { enabled: boolean }
 }
 

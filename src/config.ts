@@ -23,3 +23,9 @@ export const DEFAULT_MODEL: string = DEFAULT_MODELS[0].id
 
 /** 默认系统提示词：所有生成请求统一携带的助手身份说明 */
 export const DEFAULT_SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公司创造。'
+
+/**
+ * 默认 API 路径前缀（拼在 API 地址之后）。
+ * DeepSeek 的 Anthropic 兼容接口在 /anthropic/v1 下；one-api / new-api 这类聚合网关通常是 /v1。
+ */
+export const DEFAULT_API_PATH = '/anthropic/v1'

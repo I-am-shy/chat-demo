@@ -93,8 +93,13 @@ export const zh = {
   settingsLocationCity: '请选择市',
   settingsLocationRegion: '请选择国家或地区',
   settingsApiOrigin: 'API 地址',
+  settingsApiPath: '路径前缀',
+  settingsApiPathInvalid: '路径需以 / 开头，且不能包含空格',
+  settingsCompatMode: '兼容模式（标准 Anthropic 请求体）',
+  settingsCompatModeDescription:
+    '适配 one-api / new-api 这类聚合网关：补上 max_tokens，不发送 thinking、tools、safety_check 等扩展字段',
   settingsApiOriginDescription:
-    '留空使用默认地址；需以 http:// 或 https:// 开头。仅影响对话与文件接口，语音接口仍用默认地址',
+    '留空使用默认值：{origin} + {path}。聚合网关通常是 {origin} + /v1；语音接口固定用默认地址',
   settingsApiOriginInvalid: '请输入以 http:// 或 https:// 开头的地址',
   settingsModel: '模型',
   settingsModelDescription: '已配置的模型会出现在输入框旁的下拉框中',
@@ -112,6 +117,8 @@ export const zh = {
   avatarMenuSettingsDialogThemeSelectLightOption: '浅色',
   avatarMenuSettingsDialogThemeSelectDarkOption: '深色',
   avatarMenuSettingsDialogThemeSelectSystemOption: '跟随系统',
+  apiHtmlResponse:
+    '服务返回了 HTML 页面而不是接口响应，请检查「设置 → 数据管理」里的 API 地址与路径前缀：{url}',
   apiKeyStart: '输入 API Key 开始使用',
   apiKeyEdit: '修改 API Key',
   apiKeyPlaceholder: '请输入 API Key',

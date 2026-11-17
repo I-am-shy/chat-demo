@@ -23,6 +23,7 @@ declare const styles: {
   readonly "error": string;
   readonly "promptInput": string;
   readonly "fieldActions": string;
+  readonly "compatRow": string;
   readonly "modelList": string;
   readonly "modelItem": string;
   readonly "modelField": string;

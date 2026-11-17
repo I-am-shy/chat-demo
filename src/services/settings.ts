@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import {
+  DEFAULT_API_PATH,
   DEFAULT_MODEL,
   DEFAULT_MODELS,
   DEFAULT_SYSTEM_PROMPT,
@@ -24,6 +25,10 @@ type Settings = {
   apiKey: string | null
   /** API 地址覆盖值；null 表示使用构建期默认地址 */
   apiOrigin: string | null
+  /** API 路径前缀覆盖值；null 表示使用 config.ts 的默认路径 */
+  apiPath: string | null
+  /** 兼容模式：按标准 Anthropic 协议发送请求体（补 max_tokens、不带扩展字段） */
+  compatMode: boolean
   locale: Locale
   themePreference: ThemePreference
   location: UserLocation | null
@@ -42,6 +47,8 @@ type Settings = {
 const KEYS = {
   apiKey: 'chat-demo:api-key',
   apiOrigin: 'chat-demo:api-origin',
+  apiPath: 'chat-demo:api-path',
+  compatMode: 'chat-demo:compat-mode',
   locale: 'chat-demo:locale',
   location: 'chat-demo:location',
   themePreference: 'chat-demo:theme-preference',
@@ -111,9 +118,29 @@ const initialThemePreference = (): ThemePreference => {
 /** 未保存过时使用服务端默认音色 stella（海星） */
 const initialTtsVoice = (): TtsVoice => (read(KEYS.ttsVoice) === 'tide' ? 'tide' : 'stella')
 
-/** 规范化 API 地址：去空白与末尾斜杠，空串视为未配置 */
+/** 用户常把完整接口地址粘进来：命中这些后缀就截断，只保留域名与前缀 */
+const ENDPOINT_SUFFIXES = [
+  '/anthropic/v1/messages',
+  '/anthropic/v1/files',
+  '/anthropic/v1',
+  '/v1/messages',
+  '/v1/files',
+  '/v1/models',
+  '/messages',
+  '/files',
+  '/models',
+  '/v1',
+]
+
+/** 规范化 API 地址：去空白与末尾斜杠、截掉误粘的接口路径，空串视为未配置 */
 export const normalizeApiOrigin = (value: string): string | null => {
-  const trimmed = value.trim().replace(/\/+$/, '')
+  let trimmed = value.trim().replace(/\/+$/, '')
+  for (const suffix of ENDPOINT_SUFFIXES) {
+    if (trimmed.toLowerCase().endsWith(suffix)) {
+      trimmed = trimmed.slice(0, -suffix.length).replace(/\/+$/, '')
+      break
+    }
+  }
   return trimmed === '' ? null : trimmed
 }
 
@@ -131,9 +158,57 @@ export const isValidApiOrigin = (value: string): boolean => {
   }
 }
 
+/** 完整接口地址的结尾部分，拆地址时去掉 */
+const ENDPOINT_TAILS = ['/messages', '/files', '/models']
+
+/**
+ * 把用户输入拆成「地址 + 路径前缀」：允许直接粘贴完整接口地址，
+ * 例如 https://host/v1/messages → { origin: 'https://host', path: '/v1' }。
+ */
+export const parseApiAddress = (value: string): { origin: string; path: string | null } => {
+  const raw = value.trim().replace(/\/+$/, '')
+  if (raw === '') {
+    return { origin: '', path: null }
+  }
+  try {
+    const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`)
+    let path = url.pathname.replace(/\/+$/, '')
+    for (const tail of ENDPOINT_TAILS) {
+      if (path.toLowerCase().endsWith(tail)) {
+        path = path.slice(0, -tail.length)
+        break
+      }
+    }
+    path = path.replace(/\/+$/, '')
+    return { origin: `${url.protocol}//${url.host}`, path: path === '' ? null : path }
+  } catch {
+    return { origin: raw, path: null }
+  }
+}
+
 const initialApiOrigin = (): string | null => {
   const value = read(KEYS.apiOrigin)
   return value !== null && isValidApiOrigin(value) ? normalizeApiOrigin(value) : null
+}
+
+/** 路径前缀统一补上开头的斜杠、去掉末尾斜杠；空串视为未配置 */
+export const normalizeApiPath = (value: string): string | null => {
+  const trimmed = value.trim().replace(/\/+$/, '')
+  if (trimmed === '') {
+    return null
+  }
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+/** 只接受不含空白与协议的绝对路径 */
+export const isValidApiPath = (value: string): boolean => {
+  const normalized = normalizeApiPath(value)
+  return normalized !== null && /^\/[\w\-.]+(\/[\w\-.]+)*$/.test(normalized)
+}
+
+const initialApiPath = (): string | null => {
+  const value = read(KEYS.apiPath)
+  return value !== null && isValidApiPath(value) ? normalizeApiPath(value) : null
 }
 
 const isModelEntry = (value: unknown): value is { id: string; label?: unknown } => {
@@ -177,6 +252,8 @@ const initialSystemPrompt = (): string | null => {
 export const useSettings = create<Settings>(() => ({
   apiKey: read(KEYS.apiKey),
   apiOrigin: initialApiOrigin(),
+  apiPath: initialApiPath(),
+  compatMode: read(KEYS.compatMode) === 'true',
   locale: initialLocale(),
   location: initialLocation(),
   themePreference: initialThemePreference(),
@@ -241,6 +318,25 @@ export const setApiOrigin = (apiOrigin: string | null) => {
 /** 当前生效的 API 地址：设置里的覆盖值优先，否则用构建期默认值 */
 export const getEffectiveApiOrigin = (): string =>
   useSettings.getState().apiOrigin ?? DEFAULT_API_ORIGIN
+
+/** 写入 API 路径前缀；非法值或空值都会回落到默认路径 */
+export const setApiPath = (apiPath: string | null) => {
+  const normalized = apiPath === null ? null : normalizeApiPath(apiPath)
+  const value = normalized !== null && isValidApiPath(normalized) ? normalized : null
+  write(KEYS.apiPath, value)
+  useSettings.setState({ apiPath: value })
+}
+
+/** 当前生效的 API 路径前缀 */
+export const getEffectiveApiPath = (): string => useSettings.getState().apiPath ?? DEFAULT_API_PATH
+
+/** 兼容模式：适配按标准 Anthropic schema 校验请求体的聚合网关 */
+export const setCompatMode = (compatMode: boolean) => {
+  write(KEYS.compatMode, compatMode ? 'true' : 'false')
+  useSettings.setState({ compatMode })
+}
+
+export const getEffectiveCompatMode = (): boolean => useSettings.getState().compatMode
 
 export const setThinking = (thinking: boolean) => {
   write(KEYS.thinking, String(thinking))

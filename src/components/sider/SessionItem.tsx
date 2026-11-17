@@ -20,6 +20,8 @@ export const SessionItem = memo(function SessionItem({
 }) {
   const t = useTranslate()
   const [editing, setEditing] = useState(false)
+  // 菜单挂在 body 上，鼠标移入菜单后 item 会失去 hover，需要额外保持按钮可见
+  const [menuOpen, setMenuOpen] = useState(false)
   const displayTitle = session.title || t('untitledChat')
 
   if (editing) {
@@ -49,7 +51,7 @@ export const SessionItem = memo(function SessionItem({
 
   return (
     <div
-      className={clsx(styles.item, active && styles.active)}
+      className={clsx(styles.item, active && styles.active, menuOpen && styles.menuOpen)}
       onClick={() => {
         selectSession(session.id)
         closeMobileSider()
@@ -73,6 +75,7 @@ export const SessionItem = memo(function SessionItem({
               onSelect: onDelete,
             },
           ]}
+          onOpenChange={setMenuOpen}
         >
           {({ toggle }) => (
             <IconButton icon={<IconEllipsisOutline16 />} aria-label={t('more')} onClick={toggle} />

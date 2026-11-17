@@ -1,5 +1,6 @@
 import { translate, type TranslationMessage } from '../../i18n/index.js'
-import { getEffectiveApiOrigin } from '../settings.js'
+import { getEffectiveApiOrigin, getEffectiveApiPath, getEffectiveCompatMode } from '../settings.js'
+import { ANTHROPIC_VERSION, toCompatibleBody } from './compat.js'
 import { readMessageEvent } from './parseEvent.js'
 import { readServerSentEvents } from './sse.js'
 import type {
@@ -10,8 +11,8 @@ import type {
   MessageStreamEvent,
 } from './types.js'
 
-/** Anthropic 兼容接口的前缀；API 地址可在设置里覆盖，这里按请求取当前值 */
-const anthropicBaseUrl = (): string => `${getEffectiveApiOrigin()}/anthropic/v1`
+/** Anthropic 兼容接口的前缀：地址与路径前缀都可在设置里覆盖，这里按请求取当前值 */
+const anthropicBaseUrl = (): string => `${getEffectiveApiOrigin()}${getEffectiveApiPath()}`
 /** 引用 Files API 上传的图片、调用 Anthropic 兼容 Files API 时必须携带 */
 const FILES_BETA = 'files-api-2025-04-14'
 
@@ -47,12 +48,34 @@ const isErrorBody = (value: unknown): value is ApiErrorBody =>
   'error' in value &&
   typeof (value as ApiErrorBody).error?.message === 'string'
 
+/** 网关对未匹配的路径常返回 HTML（SPA 兜底页、登录页、404 页），据此给出可操作的提示 */
+const isHtmlContentType = (response: Response): boolean =>
+  (response.headers.get('Content-Type') ?? '').toLowerCase().includes('text/html')
+
+const looksLikeHtml = (text: string): boolean => {
+  const head = text.trimStart().slice(0, 64).toLowerCase()
+  return head.startsWith('<!doctype html') || head.startsWith('<html')
+}
+
+/** 错误里带上实际请求地址，便于发现路径被重复拼接 */
+const htmlResponseError = (
+  response: Response,
+  kind: 'http' | 'protocol' = 'protocol'
+): ApiError =>
+  new ApiError(kind, { key: 'apiHtmlResponse', params: { url: response.url } }, response.status)
+
 const readErrorResponse = async (
   response: Response,
   kind: 'http' | 'protocol' = 'http',
   fallback = response.statusText
 ): Promise<ApiError> => {
+  if (isHtmlContentType(response)) {
+    return htmlResponseError(response, kind)
+  }
   const text = await response.text().catch(() => '')
+  if (looksLikeHtml(text)) {
+    return htmlResponseError(response, kind)
+  }
   let message = text || fallback
   try {
     const body: unknown = JSON.parse(text)
@@ -78,6 +101,10 @@ export const request = async (url: string, init: RequestInit): Promise<Response>
   if (!response.ok) {
     throw await readErrorResponse(response)
   }
+  // 2xx 但返回 HTML：路由到了前端兜底页，说明地址不对
+  if (isHtmlContentType(response)) {
+    throw htmlResponseError(response)
+  }
   return response
 }
 
@@ -88,13 +115,20 @@ const anthropicHeaders = (apiKey: string, beta: boolean): Record<string, string>
   ...(beta ? { 'anthropic-beta': FILES_BETA } : {}),
 })
 
-/** 用 GET /models 校验 API Key（不产生费用） */
+/** 用 GET /models 校验 API Key（不产生费用）；聚合网关只在路径前缀下提供该接口 */
 export const verifyApiKey = async (apiKey: string, signal?: AbortSignal): Promise<void> => {
-  await request(`${getEffectiveApiOrigin()}/models`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal,
-  })
+  const headers = { Authorization: `Bearer ${apiKey}` }
+  try {
+    await request(`${getEffectiveApiOrigin()}/models`, { method: 'GET', headers, signal })
+    return
+  } catch (error) {
+    // 根路径返回 404 或 HTML 兜底页时，按配置的路径前缀再试一次
+    const retriable = error instanceof ApiError && (error.kind === 'protocol' || error.status === 404)
+    if (!retriable || signal?.aborted) {
+      throw error
+    }
+  }
+  await request(`${anthropicBaseUrl()}/models`, { method: 'GET', headers, signal })
 }
 
 /**
@@ -145,14 +179,18 @@ export async function* streamMessage(
   body: CreateMessageRequest,
   signal: AbortSignal
 ): AsyncGenerator<MessageStreamEvent> {
+  // 兼容模式下换成标准 Anthropic 请求体：补 max_tokens，去掉 Chat Engine 扩展字段
+  const compat = getEffectiveCompatMode()
+  const payload = compat ? toCompatibleBody(body) : body
   const response = await request(`${anthropicBaseUrl()}/messages`, {
     method: 'POST',
     headers: {
       ...anthropicHeaders(apiKey, hasFile(body)),
+      ...(compat ? { 'anthropic-version': ANTHROPIC_VERSION } : {}),
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     },
-    body: JSON.stringify({ ...body, stream: true }),
+    body: JSON.stringify({ ...payload, stream: true }),
     signal,
   })
   const contentType = response.headers.get('Content-Type') ?? ''

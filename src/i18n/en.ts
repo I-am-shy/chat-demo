@@ -98,8 +98,13 @@ export const en = {
   settingsLocationCity: 'Select city',
   settingsLocationRegion: 'Select country or region',
   settingsApiOrigin: 'API endpoint',
+  settingsApiPath: 'Path prefix',
+  settingsApiPathInvalid: 'Path must start with / and contain no spaces',
+  settingsCompatMode: 'Compatibility mode (strict Anthropic body)',
+  settingsCompatModeDescription:
+    'For aggregator gateways such as one-api / new-api: sends max_tokens and omits thinking, tools and safety_check',
   settingsApiOriginDescription:
-    'Leave empty to use the default; must start with http:// or https://. Applies to chat and file requests only — speech keeps the default',
+    'Leave empty to use the defaults: {origin} + {path}. Aggregators usually use {origin} + /v1; speech always uses the default endpoint',
   settingsApiOriginInvalid: 'Enter an address starting with http:// or https://',
   settingsModel: 'Model',
   settingsModelDescription: 'Configured models appear in the selector beside the chat input',
@@ -118,6 +123,8 @@ export const en = {
   avatarMenuSettingsDialogThemeSelectLightOption: 'Light',
   avatarMenuSettingsDialogThemeSelectDarkOption: 'Dark',
   avatarMenuSettingsDialogThemeSelectSystemOption: 'System',
+  apiHtmlResponse:
+    'The service returned an HTML page instead of an API response. Check the API endpoint and path prefix in Settings → Data: {url}',
   apiKeyStart: 'Enter an API Key to get started',
   apiKeyEdit: 'Edit API Key',
   apiKeyPlaceholder: 'Enter API Key',
