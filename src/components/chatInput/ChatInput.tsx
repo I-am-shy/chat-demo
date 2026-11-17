@@ -7,7 +7,14 @@ import {
   IconStopFill16,
   IconThinkOutline14,
 } from '../base/icons.js'
-import { setSearch, setThinking, useSettings } from '../../services/settings.js'
+import {
+  getModelLabel,
+  setModel,
+  setSearch,
+  setThinking,
+  useModelOptions,
+  useSettings,
+} from '../../services/settings.js'
 import { useIsMobile } from '../../app/viewport.js'
 import { sendMessage, stopReply, useChatStore } from '../../services/chat/store.js'
 import {
@@ -22,6 +29,7 @@ import {
 } from '../../services/chat/drafts.js'
 import { stopReadAloud } from '../../services/speech/readAloud.js'
 import { IconButton } from '../base/IconButton.js'
+import { Select } from '../base/Select.js'
 import { Tooltip } from '../base/Tooltip.js'
 import { ensureApiKey } from '../settings/settingsDialogState.js'
 import { DragMask, useFileDrop } from './DragMask.js'
@@ -53,6 +61,8 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
   const importingHistory = useChatStore((state) => state.importingHistory)
   const isMobile = useIsMobile()
   const search = useSettings((state) => state.search)
+  // 选项来自设置里配置的模型列表，切换立即生效
+  const { options: modelOptions, model } = useModelOptions()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const togglesRef = useRef<HTMLDivElement>(null)
@@ -72,7 +82,7 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
     const observer = new ResizeObserver(updateLabels)
     observer.observe(toggles)
     return () => observer.disconnect()
-  }, [t])
+  }, [t, model, modelOptions])
 
   const acceptFiles = (files: File[]) => {
     if (files.length === 0 || useChatStore.getState().importingHistory || !ensureApiKey()) {
@@ -202,6 +212,19 @@ const Input = ({ sessionId }: { sessionId: string | null }) => {
       <div className={styles.functionRow}>
         {/* 深度思考 / 智能搜索开关，tooltip 在按钮上方 */}
         <div ref={togglesRef} className={styles.toggles}>
+          {/* 模型下拉：选项为设置中配置的模型，菜单向右展开 */}
+          <div className={styles.modelSelect}>
+            <Select
+              value={model}
+              options={modelOptions.map((entry) => ({
+                value: entry.id,
+                label: getModelLabel(entry),
+              }))}
+              onChange={setModel}
+              ariaLabel={t('settingsModel')}
+              align="start"
+            />
+          </div>
           <Tooltip content={t('deactivatedThinkTooltip')}>
             <button
               type="button"

@@ -13,6 +13,7 @@ declare const styles: {
   readonly "mirror": string;
   readonly "functionRow": string;
   readonly "toggles": string;
+  readonly "modelSelect": string;
   readonly "collapsedToggles": string;
   readonly "toggleLabel": string;
   readonly "toggle": string;
@@ -22,4 +23,3 @@ declare const styles: {
   readonly "disabled": string;
 };
 export = styles;
-

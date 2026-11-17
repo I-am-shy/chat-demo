@@ -1,4 +1,4 @@
-import { ApiError, API_ORIGIN, request } from './client.js'
+import { ApiError, request } from './client.js'
 
 /**
  * 语音接口：
@@ -6,7 +6,8 @@ import { ApiError, API_ORIGIN, request } from './client.js'
  * - TTS：POST /v1/tools/tts，返回音频字节流（产出首帧后即返回 200）
  * 鉴权都用 Authorization: Bearer。
  */
-const TOOLS_BASE_URL = `${API_ORIGIN}/v1/tools`
+/** 语音接口固定走构建期注入的地址：自定义网关通常不实现 /v1/tools */
+const TOOLS_BASE_URL = `${__API_ORIGIN__}/v1/tools`
 
 export type TtsVoice = 'stella' | 'tide'
 

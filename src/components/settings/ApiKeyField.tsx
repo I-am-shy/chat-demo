@@ -25,7 +25,7 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
 
   return (
     <div className={styles.cell}>
-      <div className={styles.apiKey}>
+      <div className={styles.field}>
         <div className={styles.label}>{t('apiKeyStart')}</div>
         {apiKey && !editing ? (
           <div className={styles.apiKeySaved}>
@@ -38,7 +38,7 @@ export const ApiKeyField = ({ editor }: { editor: ApiKeyEditor }) => {
             />
           </div>
         ) : (
-          <div className={styles.apiKeyInput}>
+          <div className={styles.textInput}>
             <input
               type="password"
               placeholder={t('apiKeyPlaceholder')}

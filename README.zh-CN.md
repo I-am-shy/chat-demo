@@ -53,9 +53,9 @@ API Key 和设置保存在浏览器 localStorage，会话及附件原件保存�
 | `pnpm lint`   | oxlint 检查         |
 | `pnpm format` | oxfmt 格式化        |
 
-[rspack.config.ts](rspack.config.ts) 默认连接 `https://api.deepseek.com`。`createConfig({ apiOrigin, devServer })` 支持自定义 API 地址和开发服务器代理。
+[rspack.config.ts](rspack.config.ts) 默认连接 `https://api.deepseek.com`。`createConfig({ apiOrigin, devServer })` 支持自定义 API 地址和开发服务器代理；这里注入的地址同时是设置里未覆盖时的兜底值。
 
-聊天默认使用 `deepseek-flash`，通过 Anthropic 兼容的 Messages / Files API 通信；语音使用 ASR / TTS 接口。请求使用搜索、链接阅读、标题和 `latest_reminder` 等扩展，接入服务需支持相应能力。附件实际支持的格式以服务端校验为准。
+模型与系统提示词默认取 [src/config.ts](src/config.ts)（首个为 `deepseek-flash`）。「设置 → 数据管理」可维护模型列表（含别名）、编辑系统提示词，并可选地覆盖 API 地址；覆盖只作用于对话、文件与模型列表请求，语音接口仍用构建默认地址。选中的模型从输入框旁的下拉框中切换。请求通过 Anthropic 兼容的 Messages / Files API 通信；语音使用 ASR / TTS 接口。请求使用搜索、链接阅读、标题和 `latest_reminder` 等扩展，接入服务需支持相应能力。附件实际支持的格式以服务端校验为准。
 
 ```text
 src/

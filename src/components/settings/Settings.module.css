@@ -204,7 +204,88 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
-.apiKey {
+.promptInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 16px;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  resize: vertical;
+  transition: border-color var(--ds-transition-duration) var(--ds-ease-in-out);
+
+  &:focus {
+    border-color: var(--dsw-alias-brand-primary);
+  }
+
+  &::placeholder {
+    color: var(--dsw-alias-label-caption);
+  }
+}
+
+.fieldActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modelList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modelItem {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  padding-right: 6px;
+  border-radius: 18px;
+  background-color: var(--dsw-specific-login-input);
+}
+
+/* 别名与模型名各占一列，共用同一输入样式 */
+.modelField {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 14px;
+  outline: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+
+  &:focus {
+    background-color: var(--dsw-alias-interactive-bg-hover-accent);
+  }
+
+  &::placeholder {
+    color: var(--dsw-alias-label-caption);
+  }
+}
+
+.modelAdd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.modelAddInput {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.field {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -212,7 +293,7 @@
 }
 
 .apiKeySaved,
-.apiKeyInput {
+.textInput {
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -236,7 +317,7 @@
   user-select: none;
 }
 
-.apiKeyInput {
+.textInput {
   gap: 12px;
   padding: 0 14px;
   border-radius: 22px;

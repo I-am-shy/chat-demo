@@ -21,9 +21,16 @@ declare const styles: {
   readonly "themeOptionSelected": string;
   readonly "description": string;
   readonly "error": string;
-  readonly "apiKey": string;
+  readonly "promptInput": string;
+  readonly "fieldActions": string;
+  readonly "modelList": string;
+  readonly "modelItem": string;
+  readonly "modelField": string;
+  readonly "modelAdd": string;
+  readonly "modelAddInput": string;
+  readonly "field": string;
   readonly "apiKeySaved": string;
-  readonly "apiKeyInput": string;
+  readonly "textInput": string;
   readonly "apiKeyMask": string;
   readonly "divider": string;
   readonly "confirm": string;
@@ -35,4 +42,3 @@ declare const styles: {
   readonly "deleteActions": string;
 };
 export = styles;
-
