@@ -90,4 +90,12 @@ export const createConfig = ({
 })
 
 // eslint-disable-next-line import/no-default-export
-export default defineConfig(createConfig())
+export default defineConfig({
+  ...createConfig(),
+  devServer: {
+    port: 8090,
+    allowedHosts: ["local.shyshi.top"],
+    // 或者完全关闭校验（仅开发环境建议）：
+    // allowedHosts: "all",
+  }
+})
