@@ -16,13 +16,14 @@ export type ModelEntry = {
 export const DEFAULT_MODELS: readonly ModelEntry[] = [
   { id: 'deepseek-flash', label: '' },
   { id: 'deepseek-v4-pro', label: '' },
+  { id: 'glm-5.3-flash', label: 'glm-5.3-flash' },
 ]
 
 /** 列表为空或选中项失效时的兜底模型 */
 export const DEFAULT_MODEL: string = DEFAULT_MODELS[0].id
 
 /** 默认系统提示词：所有生成请求统一携带的助手身份说明 */
-export const DEFAULT_SYSTEM_PROMPT = '该助手为DeepSeek，由深度求索公司创造。'
+export const DEFAULT_SYSTEM_PROMPT = 'AI chat 助手，准确回答用户的所有问题，不清楚的事情明确回复不知道，不做虚假回复。'
 
 /**
  * 默认 API 路径前缀（拼在 API 地址之后）。
